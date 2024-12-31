@@ -1,14 +1,19 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/router";
 
-const scanBill = (file: File) => {
+const scanBill = (name: string, file: File) => {
   const formData = new FormData();
+  formData.append("name", name);
   formData.append("file", file);
   return fetch("/api/v1/scan", {
     method: "POST",
     body: formData,
   })
     .then((response) => {
+      if (!response.ok) {
+        throw new Error(response.statusText);
+      }
+
       return response
         .json()
         .catch((error) =>
@@ -31,7 +36,13 @@ const BillScanner = ({ onScan }: { onScan: (id: string) => void }) => {
     (file: File) => {
       setIsLoading(true);
       setError(null);
-      scanBill(file)
+
+      let name = null;
+      while (name === null || name === "") {
+        name = prompt("Enter a name for the bill so it is easily recognizable");
+      }
+
+      scanBill(name, file)
         .then((data: { id: string }) => {
           onScan(data.id);
         })

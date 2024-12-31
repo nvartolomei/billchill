@@ -2,6 +2,14 @@ name = "chillbill"
 compatibility_date = "2024-09-19"
 main = "src/api/index.ts"
 
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RootStoreDurableObject"]
+
+[[durable_objects.bindings]]
+name = "ROOT_STORE"
+class_name = "RootStoreDurableObject"
+
 [assets]
 directory = "./out/"
 not_found_handling = "single-page-application"
