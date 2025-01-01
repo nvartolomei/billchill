@@ -10,6 +10,10 @@ new_sqlite_classes = ["RootStoreDurableObject"]
 name = "ROOT_STORE"
 class_name = "RootStoreDurableObject"
 
+[[r2_buckets]]
+binding = "R2_DATA"
+bucket_name = "chillbill"
+
 [assets]
 directory = "./out/"
 not_found_handling = "single-page-application"

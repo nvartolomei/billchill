@@ -1,4 +1,8 @@
-import { DurableObjectState, SqlStorage } from "@cloudflare/workers-types";
+import {
+  DurableObjectState,
+  R2Bucket,
+  SqlStorage,
+} from "@cloudflare/workers-types";
 import { DurableObject } from "cloudflare:workers";
 
 interface Env {
@@ -28,7 +32,11 @@ export class RootStoreDurableObject extends DurableObject {
       return null;
     }
 
-    return results.one();
+    const bill = results.one();
+
+    bill.scan = JSON.parse(bill.scan);
+
+    return bill;
   }
 
   async createBill(id: string, name: string, scan: string): Promise<void> {

@@ -1,0 +1,78 @@
+.billHeader {
+  display: flex;
+  flex-direction: row;
+  min-height: 100px;
+  margin-bottom: 1rem;
+}
+
+.billHeaderText {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.billName {
+  margin-bottom: 0.5rem;
+}
+
+.billImageLink {
+  display: flex;
+  margin-left: auto;
+  position: relative;
+  min-height: 100px;
+}
+
+.billImageLink:hover .billImage {
+  box-shadow:
+    0 0 6px 1px rgba(0, 0, 0, 0.5),
+    0 0 6px 0 rgba(0, 0, 0, 0.5);
+}
+
+.billImage {
+  background-color: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 6px 1px rgba(0, 0, 0, 0.5);
+  transition: all 0.1s ease-in-out;
+  border-radius: 4px;
+
+  object-fit: cover;
+
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  display: flex;
+  min-width: 100px;
+  max-width: 200px;
+  height: 100%;
+}
+
+.billItems {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+
+  width: 100%;
+
+  padding: 0.5rem;
+}
+
+.billItems th,
+.billItems tr,
+.billItems td {
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+}
+
+.billItemName {
+  text-align: left;
+  font-weight: bold;
+}
+
+.billItemAmount {
+  text-align: right;
+  width: 10%;
+}
+
+.billItemClaimers {
+  text-align: right;
+  width: 20%;
+}

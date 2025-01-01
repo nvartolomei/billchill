@@ -37,9 +37,13 @@ const BillScanner = ({ onScan }: { onScan: (id: string) => void }) => {
       setIsLoading(true);
       setError(null);
 
-      let name = null;
-      while (name === null || name === "") {
-        name = prompt("Enter a name for the bill so it is easily recognizable");
+      const name = prompt(
+        "Enter a name for the bill so it is easily recognizable",
+      );
+      if (!name || name === "") {
+        setError("Name is required");
+        setIsLoading(false);
+        return;
       }
 
       scanBill(name, file)
