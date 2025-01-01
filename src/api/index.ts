@@ -22,7 +22,7 @@ type Env = {
   OPENAI_API_KEY: string;
 };
 
-const router = AutoRouter({ base: "/api" });
+const router = AutoRouter();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const rootStore = (env: any): RootStoreDurableObject => {
@@ -36,7 +36,7 @@ const perBillWs = (env: any, id: string): BillWsDurableObject => {
   return env.PER_BILL_WS.get(perBillWsId);
 };
 
-router.post("/v1/scan", async (request, env: Env) => {
+router.post("/api/v1/scan", async (request, env: Env) => {
   const formData = await request.formData();
   const name = formData.get("name");
   const file = formData.get("file") as null | File;
@@ -80,7 +80,7 @@ router.post("/v1/scan", async (request, env: Env) => {
   return Response.json({ id });
 });
 
-router.get("/v1/bill/:id", async (request, env: Env) => {
+router.get("/api/v1/bill/:id", async (request, env: Env) => {
   const id = request.params.id;
 
   const bill = await rootStore(env).getBill(id);
@@ -91,7 +91,7 @@ router.get("/v1/bill/:id", async (request, env: Env) => {
   return Response.json(bill);
 });
 
-router.post("/v1/bill/:id/claim/:item", async (request, env: Env) => {
+router.post("/api/v1/bill/:id/claim/:item", async (request, env: Env) => {
   const id = request.params.id;
   const item = request.params.item;
   const body = await request.json();
@@ -111,7 +111,7 @@ router.post("/v1/bill/:id/claim/:item", async (request, env: Env) => {
   return Response.json({ id });
 });
 
-router.get("/v1/bill/:id/image", async (request, env: Env) => {
+router.get("/api/v1/bill/:id/image", async (request, env: Env) => {
   const object = await env.R2_DATA.get(`/bills/${request.params.id}`);
 
   if (object === null) {
@@ -127,7 +127,7 @@ router.get("/v1/bill/:id/image", async (request, env: Env) => {
   });
 });
 
-router.get("/v1/bill/:id/ws", async (request, env: Env) => {
+router.get("/api/v1/bill/:id/ws", async (request, env: Env) => {
   const upgradeHeader = request.headers.get("Upgrade");
   if (!upgradeHeader || upgradeHeader !== "websocket") {
     return new Response("Expected Upgrade: websocket", { status: 426 });
@@ -142,7 +142,7 @@ router.get("/v1/bill/:id/ws", async (request, env: Env) => {
   });
 });
 
-router.post("/v1/user", async (request, env: Env) => {
+router.post("/api/v1/user", async (request, env: Env) => {
   const body = await request.json();
   const id = body.id;
   const privateId = body.privateId;
