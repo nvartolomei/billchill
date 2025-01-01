@@ -1,16 +1,61 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
-import styles from "./page.module.css";
 import Link from "next/link";
+import styles from "./page.module.css";
+
+const subscribeToUpdates = (id: string) => {
+  let ws: WebSocket | null = null;
+  let isClosed = false;
+
+  const createWebSocket = () => {
+    ws = new WebSocket(`/api/v1/bill/${id}/ws`);
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+    ws.onmessage = (event) => {
+      console.log(event);
+    };
+    ws.onclose = () => {
+      const retryIntervalSeconds = 3;
+      console.log("WebSocket closed");
+      if (!isClosed) {
+        console.log(
+          `WebSocket closed, retrying in ${retryIntervalSeconds} seconds...`,
+        );
+        setTimeout(() => {
+          createWebSocket();
+        }, retryIntervalSeconds * 1000);
+      }
+    };
+    ws.onerror = (error) => {
+      console.error("WebSocket error", error);
+    };
+  };
+
+  createWebSocket();
+
+  return () => {
+    isClosed = true;
+    if (!ws) return;
+    try {
+      ws.close();
+    } catch (error) {
+      console.error("WebSocket close error", error);
+    }
+  };
+};
 
 export default function BillPage() {
   const router = useRouter();
   const { id } = router.query;
-
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bill, setBill] = useState<any | null>(null);
+
+  if (Array.isArray(id)) {
+    return <div>Invalid bill ID</div>;
+  }
 
   useEffect(() => {
     if (!id) {
@@ -46,28 +91,7 @@ export default function BillPage() {
       return;
     }
 
-    const ws = new WebSocket(`/api/v1/bill/${id}/ws`);
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-    };
-    ws.onmessage = (event) => {
-      console.log(event);
-    };
-    ws.onclose = () => {
-      console.log("WebSocket closed");
-    };
-    ws.onerror = (error) => {
-      console.error("WebSocket error", error);
-    };
-
-    return () => {
-      try {
-        console.log("closing");
-        ws.close();
-      } catch (error) {
-        console.error("WebSocket close error", error);
-      }
-    };
+    return subscribeToUpdates(id);
   }, [id]);
 
   const handleClaim = () => {
