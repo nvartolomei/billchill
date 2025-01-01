@@ -277,7 +277,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
                   >
                     Bill total
                   </td>
-                  <td className={styles.billItemAmount}>{bill.total_amount}</td>
+                  <td className={styles.billItemAmount}>{bill.scan.total}</td>
                   <td
                     style={{
                       borderBottomStyle: "hidden",

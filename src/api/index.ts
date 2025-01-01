@@ -5,6 +5,9 @@ import { RootStoreDurableObject } from "../do/rootstore";
 
 import { DurableObjectNamespace, R2Bucket } from "@cloudflare/workers-types";
 
+import { OpenAIBillScanner } from "../scanner/openai";
+import OpenAI from "openai";
+
 export { BillWsDurableObject, RootStoreDurableObject };
 
 const ROOT_STORE_ID = "ROOT_STORE";
@@ -16,20 +19,10 @@ type Env = {
   ASSETS: {
     fetch: typeof fetch;
   };
+  OPENAI_API_KEY: string;
 };
 
 const router = AutoRouter({ base: "/api" });
-
-const mockBill = {
-  items: [
-    {
-      id: "1",
-      name: "test",
-      amount: 42,
-    },
-  ],
-  total: 42,
-};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const rootStore = (env: any): RootStoreDurableObject => {
@@ -56,6 +49,26 @@ router.post("/v1/scan", async (request, env: Env) => {
     return Response.json({ error: "No file provided" }, { status: 400 });
   }
 
+  const arrayBuffer = await file.arrayBuffer();
+  const b64Image = btoa(
+    new Uint8Array(arrayBuffer).reduce(function (data, byte) {
+      return data + String.fromCharCode(byte);
+    }, ""),
+  );
+
+  const openai = new OpenAI({
+    apiKey: env.OPENAI_API_KEY,
+  });
+
+  const scanner = new OpenAIBillScanner(openai, "gpt-4o");
+  const result = await scanner.scan(b64Image);
+
+  if (!result) {
+    return Response.json({ error: "Failed to scan bill" }, { status: 500 });
+  }
+
+  console.log(result);
+
   const id = crypto.randomUUID();
 
   await env.R2_DATA.put(`/bills/${id}`, await file.arrayBuffer(), {
@@ -64,11 +77,7 @@ router.post("/v1/scan", async (request, env: Env) => {
     },
   });
 
-  await rootStore(env).createBill(
-    id,
-    name.toString(),
-    JSON.stringify(mockBill),
-  );
+  await rootStore(env).createBill(id, name.toString(), JSON.stringify(result));
 
   return Response.json({ id });
 });

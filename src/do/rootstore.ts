@@ -63,14 +63,14 @@ export class RootStoreDurableObject extends DurableObject {
 
     bill.total_amount = (bill.scan as any).items.reduce(
       (acc, item) => acc + item.amount,
-      1,
+      0,
     ) as number;
 
     if (bill.total_amount !== (bill.scan as any).total) {
       (bill.scan as any).items.push({
-        name: "Unaccounted",
+        name: "Unaccounted (e.g. tip, tax, etc.)",
         autoClaimed: true,
-        amount: bill.total_amount - (bill.scan as any).total,
+        amount: ((bill.scan as any).total - bill.total_amount).toFixed(2),
       });
     }
 
