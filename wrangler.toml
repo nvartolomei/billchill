@@ -1,4 +1,4 @@
-name = "chillbill"
+name = "billchill"
 compatibility_date = "2024-09-19"
 main = "src/api/index.ts"
 
@@ -18,7 +18,7 @@ class_name = "BillWsDurableObject"
 
 [[r2_buckets]]
 binding = "R2_DATA"
-bucket_name = "chillbill"
+bucket_name = "billchill"
 
 [assets]
 directory = "./out/"
