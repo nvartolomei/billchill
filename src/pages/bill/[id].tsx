@@ -1,10 +1,10 @@
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import Link from "next/link";
 import styles from "./page.module.css";
 
-const subscribeToUpdates = (id: string) => {
+const subscribeToUpdates = (id: string, options: { onUpdate: () => void }) => {
   let ws: WebSocket | null = null;
   let isClosed = false;
 
@@ -12,9 +12,13 @@ const subscribeToUpdates = (id: string) => {
     ws = new WebSocket(`/api/v1/bill/${id}/ws`);
     ws.onopen = () => {
       console.log("WebSocket connected");
+      // Refresh the bill immediately after connection to make sure we did
+      // not miss any updates.
+      options.onUpdate();
     };
     ws.onmessage = (event) => {
       console.log(event);
+      options.onUpdate();
     };
     ws.onclose = () => {
       const retryIntervalSeconds = 3;
@@ -46,6 +50,22 @@ const subscribeToUpdates = (id: string) => {
   };
 };
 
+const fetchBill = async (id: string) => {
+  const response = await fetch(`/api/v1/bill/${id}`);
+
+  if (response.status !== 200) {
+    throw new Error(`${response.status} != 200: ${response.statusText}`);
+  }
+
+  return response
+    .json()
+    .catch((error) =>
+      Promise.reject(
+        Error(`Failed to parse server response: ${error.message}`),
+      ),
+    );
+};
+
 export default function BillPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -57,42 +77,38 @@ export default function BillPage() {
     return <div>Invalid bill ID</div>;
   }
 
-  useEffect(() => {
+  const refreshBill = useCallback(() => {
     if (!id) {
       return;
     }
 
-    fetch(`/api/v1/bill/${id}`)
-      .then((response) => {
-        if (response.status !== 200) {
-          throw new Error(`${response.status} != 200: ${response.statusText}`);
-        }
-
-        return response
-          .json()
-          .catch((error) =>
-            Promise.reject(
-              Error(`Failed to parse server response: ${error.message}`),
-            ),
-          );
-      })
+    fetchBill(id)
       .then((data) => {
         setBill(data);
-        setIsLoading(false);
       })
       .catch((error) => {
-        setIsLoading(false);
         setError(`Error fetching bill ${id}: ${error}`);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
-  }, [id, setBill, setIsLoading, setError]);
+  }, [id]);
 
   useEffect(() => {
     if (!id) {
       return;
     }
 
-    return subscribeToUpdates(id);
-  }, [id]);
+    refreshBill();
+  }, [id, refreshBill]);
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    return subscribeToUpdates(id, { onUpdate: refreshBill });
+  }, [id, refreshBill]);
 
   const handleClaim = () => {
     const shares = prompt(
