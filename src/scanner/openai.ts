@@ -32,7 +32,7 @@ export class OpenAIBillScanner {
       ),
     });
 
-    let scanResult = result.choices[0]?.message.parsed;
+    const scanResult = result.choices[0]?.message.parsed;
     if (!scanResult) {
       return null;
     }

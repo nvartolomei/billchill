@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import "./globals.css";
 import styles from "./layout.module.css";
+import Link from "next/link";
 
 const upsertUser = async (privateId: string, id: string, name: string) => {
   const response = await fetch("/api/v1/user", {
@@ -72,7 +73,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       <div className={styles.layout}>
         <div className={styles.header}>
           <h1 className={styles.title}>
-            <a href="/">BillChill {isHome ? "" : "↩︎"}</a>
+            <Link href="/">BillChill {isHome ? "" : "↩︎"}</Link>
           </h1>
           <div>
             {!user && (

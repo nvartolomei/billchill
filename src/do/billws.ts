@@ -13,7 +13,7 @@ export class BillWsDurableObject extends DurableObject {
     this.ctx = state;
   }
 
-  async fetch(request: Request) {
+  async fetch() {
     const webSocketPair = new WebSocketPair();
     const [client, server] = Object.values(webSocketPair);
 

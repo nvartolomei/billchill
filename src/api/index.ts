@@ -67,8 +67,6 @@ router.post("/v1/scan", async (request, env: Env) => {
     return Response.json({ error: "Failed to scan bill" }, { status: 500 });
   }
 
-  console.log(result);
-
   const id = crypto.randomUUID();
 
   await env.R2_DATA.put(`/bills/${id}`, await file.arrayBuffer(), {

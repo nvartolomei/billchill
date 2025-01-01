@@ -1,27 +1,11 @@
-import {
-  DurableObjectState,
-  R2Bucket,
-  SqlStorage,
-} from "@cloudflare/workers-types";
+import { DurableObjectState, SqlStorage } from "@cloudflare/workers-types";
 import { DurableObject } from "cloudflare:workers";
+
+import { type Bill } from "./types";
 
 interface Env {
   ROOT_STORE: DurableObject;
 }
-
-type Bill = {
-  scan: {
-    items: {
-      name: string;
-      amount: number;
-    }[];
-  };
-  total_amount: number;
-  participants: {
-    id: string;
-    name: string;
-  }[];
-};
 
 export class RootStoreDurableObject extends DurableObject {
   sql: SqlStorage;
@@ -59,23 +43,22 @@ export class RootStoreDurableObject extends DurableObject {
       return null;
     }
 
-    bill.scan = JSON.parse(bill.scan as string);
-
-    bill.total_amount = (bill.scan as any).items.reduce(
+    const scanJson = JSON.parse(bill.scan as string);
+    const manualTotal = scanJson.items.reduce(
       (acc, item) => acc + item.amount,
       0,
-    ) as number;
+    );
 
-    if (bill.total_amount !== (bill.scan as any).total) {
-      (bill.scan as any).items.push({
+    if (scanJson.total !== manualTotal) {
+      scanJson.items.push({
         name: "Unaccounted (e.g. tip, tax, etc.)",
-        autoClaimed: true,
-        amount: ((bill.scan as any).total - bill.total_amount).toFixed(2),
+        autoClaiming: true,
+        amount: (scanJson.total - manualTotal).toFixed(2),
       });
     }
 
-    let participants = new Set<string>();
-    for (const item of (bill.scan as any).items) {
+    const participants = new Set<string>();
+    for (const item of scanJson.items) {
       if (item.claimers) {
         for (const claimer of item.claimers) {
           participants.add(claimer.id);
@@ -85,8 +68,8 @@ export class RootStoreDurableObject extends DurableObject {
       }
     }
 
-    for (const item of (bill.scan as any).items) {
-      if (item.autoClaimed) {
+    for (const item of scanJson.items) {
+      if (item.autoClaiming) {
         for (const participant of participants) {
           item.claimers = [
             ...(item.claimers || []),
@@ -96,15 +79,24 @@ export class RootStoreDurableObject extends DurableObject {
       }
     }
 
-    (bill.participants as any) = {};
+    const billParticipants: Record<string, { id: string; name: string }> = {};
     for (const participant of participants) {
-      (bill.participants as any)[participant] = {
+      const user = this.getUser(participant);
+      if (!user || !user.name) {
+        throw new Error(`User ${participant} not found or has no name`);
+      }
+      billParticipants[participant] = {
         id: participant,
-        name: this.getUser(participant)?.name,
+        name: user.name as string,
       };
     }
 
-    return bill as unknown as Bill;
+    return {
+      name: bill.name as string,
+      date: bill.date as string,
+      scan: scanJson,
+      participants: billParticipants,
+    };
   }
 
   createBill(id: string, name: string, scan: string) {
@@ -130,12 +122,12 @@ export class RootStoreDurableObject extends DurableObject {
 
     const scan = JSON.parse(bill.scan as string);
 
-    let item = scan.items.find((i) => i.id === itemId);
+    const item = scan.items.find((i) => i.id === itemId);
     if (!item) {
       throw new Error("Item not found");
     }
 
-    let claimer = item.claimers?.find((c) => c.id === user.id);
+    const claimer = item.claimers?.find((c) => c.id === user.id);
     if (claimer) {
       if (shares === 0) {
         item.claimers = item.claimers?.filter((c) => c.id !== user.id);

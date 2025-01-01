@@ -5,6 +5,8 @@ import Link from "next/link";
 import styles from "./page.module.css";
 import { UserContext } from "@/componenets/Contexts";
 
+import { type Bill } from "@/do/types";
+
 const subscribeToUpdates = (id: string, options: { onUpdate: () => void }) => {
   let ws: WebSocket | null = null;
   let isClosed = false;
@@ -86,15 +88,15 @@ const submitClaim = async (
 
 export default function BillPage() {
   const router = useRouter();
-  const { id } = router.query;
+  let { id } = router.query;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [bill, setBill] = useState<any | null>(null);
+  const [bill, setBill] = useState<Bill | null>(null);
 
   const user = useContext(UserContext);
 
   if (Array.isArray(id)) {
-    return <div>Invalid bill ID</div>;
+    id = id[0];
   }
 
   const refreshBill = useCallback(() => {
@@ -153,7 +155,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
 
     // If you want to limit your claim amount, enter a number between 0 and 1 which will cap your claim to that percentage of the item.`,
 
-    let numericShares = parseInt(shares, 10);
+    const numericShares = parseInt(shares, 10);
 
     submitClaim(user.privateId, id, itemId, numericShares).catch((error) => {
       alert(`Error claiming item ${itemId}: ${error}`);
@@ -165,7 +167,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
       return [];
     }
 
-    let t: Record<
+    const t: Record<
       string,
       {
         total: number;
@@ -181,7 +183,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
     for (const item of bill.scan.items) {
       if (item.claimers) {
         const totalShares = item.claimers.reduce(
-          (acc: number, v: any) => acc + v.shares,
+          (acc: number, v: { shares: number }) => acc + v.shares,
           0,
         );
 
@@ -240,7 +242,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
                 </tr>
               </thead>
               <tbody>
-                {bill.scan.items.map((item: any, index: number) => (
+                {bill.scan.items.map((item, index: number) => (
                   <tr
                     key={index}
                     className={
@@ -250,7 +252,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
                     <td className={styles.billItemName}>{item.name}</td>
                     <td className={styles.billItemAmount}>{item.amount}</td>
                     <td className={styles.billItemClaimers}>
-                      {item.claimers?.map((claimer: any, index: number) => (
+                      {item.claimers?.map((claimer, index: number) => (
                         <span key={claimer.id}>
                           {bill.participants[claimer.id].name} ({claimer.shares}
                           ){index < item.claimers.length - 1 ? ", " : ""}
@@ -258,12 +260,12 @@ If you want to claim for yourself together with someone else, enter 2.`,
                       ))}
                     </td>
                     <td className={styles.billItemClaimers}>
-                      {item.autoClaimed ? (
-                        "Auto-claimed"
+                      {item.autoClaiming ? (
+                        "Auto-claiming"
                       ) : (
                         <>
                           <button onClick={() => handleClaim(item.id)}>
-                            I'm in!
+                            Claim
                           </button>
                         </>
                       )}
