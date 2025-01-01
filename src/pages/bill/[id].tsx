@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 import styles from "./page.module.css";
@@ -57,13 +57,22 @@ const fetchBill = async (id: string) => {
     throw new Error(`${response.status} != 200: ${response.statusText}`);
   }
 
-  return response
-    .json()
-    .catch((error) =>
-      Promise.reject(
-        Error(`Failed to parse server response: ${error.message}`),
-      ),
-    );
+  try {
+    return response.json();
+  } catch (error) {
+    throw new Error(`Failed to parse server response: ${error}`);
+  }
+};
+
+const submitClaim = async (id: string, itemId: string, shares: number) => {
+  const response = await fetch(`/api/v1/bill/${id}/claim/${itemId}`, {
+    method: "POST",
+    body: JSON.stringify({ shares }),
+  });
+
+  if (response.status !== 200) {
+    throw new Error(`${response.status} != 200: ${response.statusText}`);
+  }
 };
 
 export default function BillPage() {
@@ -110,18 +119,73 @@ export default function BillPage() {
     return subscribeToUpdates(id, { onUpdate: refreshBill });
   }, [id, refreshBill]);
 
-  const handleClaim = () => {
+  const handleClaim = (itemId: string) => {
+    if (!id) {
+      throw new Error("Bill ID is required");
+    }
+
     const shares = prompt(
       `How many shares of this item do you want to claim?
+
 If you claim for yourself, enter 1.
+
 If you want to claim for yourself together with someone else, enter 2.`,
     );
     if (!shares) {
       return;
     }
 
-    console.log(shares);
+    // If you want to limit your claim amount, enter a number between 0 and 1 which will cap your claim to that percentage of the item.`,
+
+    let numericShares = parseInt(shares, 10);
+
+    submitClaim(id, itemId, numericShares);
   };
+
+  const tallys = useMemo(() => {
+    if (!bill) {
+      return [];
+    }
+
+    let t: Record<
+      string,
+      {
+        total: number;
+        items: {
+          name: string;
+          amount: number;
+          shares: number;
+          totalShares: number;
+        }[];
+      }
+    > = {};
+
+    for (const item of bill.scan.items) {
+      if (item.claimers) {
+        const totalShares = item.claimers.reduce(
+          (acc: number, v: any) => v.shares,
+          0,
+        );
+
+        const shareValue = item.amount / totalShares;
+
+        for (const claimer of item.claimers) {
+          if (!t[claimer.id]) {
+            t[claimer.id] = { total: 0, items: [] };
+          }
+          t[claimer.id].total += shareValue * claimer.shares;
+          t[claimer.id].items.push({
+            name: item.name,
+            amount: shareValue * claimer.shares,
+            shares: claimer.shares,
+            totalShares: totalShares,
+          });
+        }
+      }
+    }
+
+    return t;
+  }, [bill]);
 
   return (
     <div>
@@ -159,31 +223,85 @@ If you want to claim for yourself together with someone else, enter 2.`,
               </thead>
               <tbody>
                 {bill.scan.items.map((item: any, index: number) => (
-                  <tr key={index} className={styles.billItem}>
+                  <tr
+                    key={index}
+                    className={
+                      item.claimers.length > 0 ? "" : styles.billItemHighlight
+                    }
+                  >
                     <td className={styles.billItemName}>{item.name}</td>
                     <td className={styles.billItemAmount}>{item.amount}</td>
                     <td className={styles.billItemClaimers}>
-                      <button onClick={handleClaim}>I'm in!</button>
+                      {item.claimers?.map((claimer: any, index: number) => (
+                        <span key={claimer.id}>
+                          {claimer.id} ({claimer.shares})
+                          {index < item.claimers.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
+                    </td>
+                    <td className={styles.billItemClaimers}>
+                      {item.autoClaimed ? (
+                        "Auto-claimed"
+                      ) : (
+                        <>
+                          <button onClick={() => handleClaim(item.id)}>
+                            I'm in!
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
+                <tr style={{ borderTopWidth: "2px" }}>
+                  <td
+                    className={styles.billItemName}
+                    style={{ fontWeight: "bold" }}
+                  >
+                    Bill total
+                  </td>
+                  <td className={styles.billItemAmount}>{bill.total_amount}</td>
+                  <td
+                    style={{
+                      borderBottomStyle: "hidden",
+                      borderRightStyle: "hidden",
+                    }}
+                  ></td>
+                  <td
+                    style={{
+                      borderBottomStyle: "hidden",
+                      borderRightStyle: "hidden",
+                    }}
+                  ></td>
+                </tr>
               </tbody>
             </table>
           </div>
 
           <div className={`section`}>
-            <h3 className={`section-title`}>Claimers</h3>
+            <h3 className={`margin-bottom-1`}>Tally</h3>
             <p className={`margin-bottom-1`}>
-              <i>Numbers will be final when everyone finished claiming.</i>
+              <i>
+                Note: Numbers will be final once everyone finished claiming.
+              </i>
             </p>
             <ul>
-              <li>
-                <abbr title="in progress...">⏳</abbr> <strong>foo</strong>{" "}
-                claiming, ~$10 so far
-              </li>
-              <li>
-                <abbr title="Done">✅</abbr> <strong>bar</strong> claimed ~$10
-              </li>
+              {Object.entries(tallys).map(([id, tally]) => (
+                <li key={id}>
+                  {/*<abbr title="in progress...">⏳</abbr> */}
+                  <strong>{id}</strong> claimed <code>{tally.total}</code>
+                  <ul>
+                    {tally.items.map((item) => (
+                      <li key={item.name}>
+                        {item.name} (
+                        <code>
+                          {item.shares}/{item.totalShares} = {item.amount}
+                        </code>
+                        )
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
             </ul>
           </div>
         </>

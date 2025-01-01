@@ -1,11 +1,11 @@
 import { AutoRouter } from "itty-router";
 
-import { RootStoreDurableObject } from "../do/rootstore";
 import { BillWsDurableObject } from "../do/billws";
+import { RootStoreDurableObject } from "../do/rootstore";
 
 import { DurableObjectNamespace, R2Bucket } from "@cloudflare/workers-types";
 
-export { RootStoreDurableObject, BillWsDurableObject };
+export { BillWsDurableObject, RootStoreDurableObject };
 
 const ROOT_STORE_ID = "ROOT_STORE";
 
@@ -23,6 +23,7 @@ const router = AutoRouter({ base: "/api" });
 const mockBill = {
   items: [
     {
+      id: "1",
       name: "test",
       amount: 42,
     },
@@ -34,6 +35,12 @@ const mockBill = {
 const rootStore = (env: any): RootStoreDurableObject => {
   const rootStoreId = env.ROOT_STORE.idFromName(ROOT_STORE_ID);
   return env.ROOT_STORE.get(rootStoreId);
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const perBillWs = (env: any, id: string): BillWsDurableObject => {
+  const perBillWsId = env.PER_BILL_WS.idFromName(id);
+  return env.PER_BILL_WS.get(perBillWsId);
 };
 
 router.post("/v1/scan", async (request, env: Env) => {
@@ -74,9 +81,18 @@ router.get("/v1/bill/:id", async (request, env: Env) => {
     return Response.json({ error: "Bill not found" }, { status: 404 });
   }
 
-  // bill.image_url = env.R2_DATA.
-
   return Response.json(bill);
+});
+
+router.post("/v1/bill/:id/claim/:item", async (request, env: Env) => {
+  const id = request.params.id;
+  const item = request.params.item;
+  const body = await request.json();
+
+  await rootStore(env).claimItem(id, item, body.shares);
+  await perBillWs(env, id).broadcast(`${id}:${item}:${body.shares}`);
+
+  return Response.json({ id });
 });
 
 router.get("/v1/bill/:id/image", async (request, env: Env) => {
@@ -103,8 +119,7 @@ router.get("/v1/bill/:id/ws", async (request, env: Env) => {
 
   const id = request.params.id;
 
-  const wsId = env.PER_BILL_WS.idFromName(id);
-  const wsStub = env.PER_BILL_WS.get(wsId);
+  const wsStub = perBillWs(env, id);
 
   return wsStub.fetch(request.url, {
     headers: request.headers,

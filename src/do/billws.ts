@@ -15,8 +15,6 @@ export class BillWsDurableObject extends DurableObject {
   }
 
   async fetch(request: Request) {
-    console.log("fetch");
-
     const webSocketPair = new WebSocketPair();
     const [client, server] = Object.values(webSocketPair);
 

@@ -63,10 +63,10 @@ p {
   margin-bottom: 1rem;
 }
 
-.section-title {
+.margin-bottom-1 {
   margin-bottom: 0.5rem;
 }
 
-.margin-bottom-1 {
-  margin-bottom: 0.5rem;
+li ul {
+  margin-left: 1rem;
 }
