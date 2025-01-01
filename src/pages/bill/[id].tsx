@@ -41,6 +41,35 @@ export default function BillPage() {
       });
   }, [id, setBill, setIsLoading, setError]);
 
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    const ws = new WebSocket(`/api/v1/bill/${id}/ws`);
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+    ws.onmessage = (event) => {
+      console.log(event);
+    };
+    ws.onclose = () => {
+      console.log("WebSocket closed");
+    };
+    ws.onerror = (error) => {
+      console.error("WebSocket error", error);
+    };
+
+    return () => {
+      try {
+        console.log("closing");
+        ws.close();
+      } catch (error) {
+        console.error("WebSocket close error", error);
+      }
+    };
+  }, [id]);
+
   const handleClaim = () => {
     const shares = prompt(
       `How many shares of this item do you want to claim?

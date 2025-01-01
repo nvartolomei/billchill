@@ -4,11 +4,17 @@ main = "src/api/index.ts"
 
 [[migrations]]
 tag = "v1"
+new_classes = ["BillWsDurableObject"]
 new_sqlite_classes = ["RootStoreDurableObject"]
+
 
 [[durable_objects.bindings]]
 name = "ROOT_STORE"
 class_name = "RootStoreDurableObject"
+
+[[durable_objects.bindings]]
+name = "PER_BILL_WS"
+class_name = "BillWsDurableObject"
 
 [[r2_buckets]]
 binding = "R2_DATA"

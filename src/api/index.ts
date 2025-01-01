@@ -1,14 +1,17 @@
 import { AutoRouter } from "itty-router";
 
 import { RootStoreDurableObject } from "../do/rootstore";
-import { DurableObjectStub, R2Bucket } from "@cloudflare/workers-types";
+import { BillWsDurableObject } from "../do/billws";
 
-export { RootStoreDurableObject };
+import { DurableObjectNamespace, R2Bucket } from "@cloudflare/workers-types";
+
+export { RootStoreDurableObject, BillWsDurableObject };
 
 const ROOT_STORE_ID = "ROOT_STORE";
 
 type Env = {
-  ROOT_STORE: DurableObjectStub;
+  ROOT_STORE: DurableObjectNamespace;
+  PER_BILL_WS: DurableObjectNamespace;
   R2_DATA: R2Bucket;
   ASSETS: {
     fetch: typeof fetch;
@@ -89,6 +92,22 @@ router.get("/v1/bill/:id/image", async (request, env: Env) => {
 
   return new Response(object.body, {
     headers,
+  });
+});
+
+router.get("/v1/bill/:id/ws", async (request, env: Env) => {
+  const upgradeHeader = request.headers.get("Upgrade");
+  if (!upgradeHeader || upgradeHeader !== "websocket") {
+    return new Response("Expected Upgrade: websocket", { status: 426 });
+  }
+
+  const id = request.params.id;
+
+  const wsId = env.PER_BILL_WS.idFromName(id);
+  const wsStub = env.PER_BILL_WS.get(wsId);
+
+  return wsStub.fetch(request.url, {
+    headers: request.headers,
   });
 });
 
