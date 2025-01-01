@@ -89,6 +89,7 @@ router.post("/v1/bill/:id/claim/:item", async (request, env: Env) => {
   const item = request.params.item;
   const body = await request.json();
 
+  const userPrivateId = body.userPrivateId;
   const numericShares = parseInt(body.shares, 10);
   if (isNaN(numericShares) || numericShares < 0 || numericShares > 42) {
     return Response.json(
@@ -97,7 +98,7 @@ router.post("/v1/bill/:id/claim/:item", async (request, env: Env) => {
     );
   }
 
-  await rootStore(env).claimItem(id, item, numericShares);
+  await rootStore(env).claimItem(userPrivateId, id, item, numericShares);
   await perBillWs(env, id).broadcast(`${id}:${item}:${numericShares}`);
 
   return Response.json({ id });
@@ -132,6 +133,20 @@ router.get("/v1/bill/:id/ws", async (request, env: Env) => {
   return wsStub.fetch(request.url, {
     headers: request.headers,
   });
+});
+
+router.post("/v1/user", async (request, env: Env) => {
+  const body = await request.json();
+  const id = body.id;
+  const privateId = body.privateId;
+  const name = body.name;
+
+  if (!id || !privateId || !name) {
+    return Response.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  await rootStore(env).upsertUser(privateId, id, name);
+  return Response.json({ id });
 });
 
 // Fallback to static assets

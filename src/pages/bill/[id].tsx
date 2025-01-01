@@ -1,8 +1,9 @@
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 import styles from "./page.module.css";
+import { UserContext } from "@/componenets/Contexts";
 
 const subscribeToUpdates = (id: string, options: { onUpdate: () => void }) => {
   let ws: WebSocket | null = null;
@@ -64,10 +65,18 @@ const fetchBill = async (id: string) => {
   }
 };
 
-const submitClaim = async (id: string, itemId: string, shares: number) => {
+const submitClaim = async (
+  userPrivateId: string,
+  id: string,
+  itemId: string,
+  shares: number,
+) => {
   const response = await fetch(`/api/v1/bill/${id}/claim/${itemId}`, {
     method: "POST",
-    body: JSON.stringify({ shares }),
+    body: JSON.stringify({
+      userPrivateId,
+      shares,
+    }),
   });
 
   if (response.status !== 200) {
@@ -81,6 +90,8 @@ export default function BillPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bill, setBill] = useState<any | null>(null);
+
+  const user = useContext(UserContext);
 
   if (Array.isArray(id)) {
     return <div>Invalid bill ID</div>;
@@ -124,6 +135,11 @@ export default function BillPage() {
       throw new Error("Bill ID is required");
     }
 
+    if (!user) {
+      alert("You must be logged in to claim items");
+      return;
+    }
+
     const shares = prompt(
       `How many shares of this item do you want to claim?
 
@@ -139,7 +155,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
 
     let numericShares = parseInt(shares, 10);
 
-    submitClaim(id, itemId, numericShares).catch((error) => {
+    submitClaim(user.privateId, id, itemId, numericShares).catch((error) => {
       alert(`Error claiming item ${itemId}: ${error}`);
     });
   };
@@ -165,7 +181,7 @@ If you want to claim for yourself together with someone else, enter 2.`,
     for (const item of bill.scan.items) {
       if (item.claimers) {
         const totalShares = item.claimers.reduce(
-          (acc: number, v: any) => v.shares,
+          (acc: number, v: any) => acc + v.shares,
           0,
         );
 
@@ -236,8 +252,8 @@ If you want to claim for yourself together with someone else, enter 2.`,
                     <td className={styles.billItemClaimers}>
                       {item.claimers?.map((claimer: any, index: number) => (
                         <span key={claimer.id}>
-                          {claimer.id} ({claimer.shares})
-                          {index < item.claimers.length - 1 ? ", " : ""}
+                          {bill.participants[claimer.id].name} ({claimer.shares}
+                          ){index < item.claimers.length - 1 ? ", " : ""}
                         </span>
                       ))}
                     </td>
@@ -290,7 +306,8 @@ If you want to claim for yourself together with someone else, enter 2.`,
               {Object.entries(tallys).map(([id, tally]) => (
                 <li key={id}>
                   {/*<abbr title="in progress...">⏳</abbr> */}
-                  <strong>{id}</strong> claimed <code>{tally.total}</code>
+                  <strong>{bill.participants[id].name}</strong> claimed{" "}
+                  <code>{tally.total}</code>
                   <ul>
                     {tally.items.map((item) => (
                       <li key={item.name}>
