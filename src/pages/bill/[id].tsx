@@ -139,7 +139,9 @@ If you want to claim for yourself together with someone else, enter 2.`,
 
     let numericShares = parseInt(shares, 10);
 
-    submitClaim(id, itemId, numericShares);
+    submitClaim(id, itemId, numericShares).catch((error) => {
+      alert(`Error claiming item ${itemId}: ${error}`);
+    });
   };
 
   const tallys = useMemo(() => {

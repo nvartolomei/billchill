@@ -11,7 +11,6 @@ export class BillWsDurableObject extends DurableObject {
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
     this.ctx = state;
-    this.listeners = [];
   }
 
   async fetch(request: Request) {
@@ -19,7 +18,6 @@ export class BillWsDurableObject extends DurableObject {
     const [client, server] = Object.values(webSocketPair);
 
     this.ctx.acceptWebSocket(server);
-    this.listeners.push(server);
 
     return new Response(null, {
       status: 101,
@@ -28,16 +26,15 @@ export class BillWsDurableObject extends DurableObject {
   }
 
   async broadcast(message: string) {
-    let deadListeners: WebSocket[] = [];
+    const listeners = await this.ctx.getWebSockets();
+    console.log("Broadcasting", message, listeners.length);
 
-    this.listeners.forEach((listener) => {
-      if (listener.readyState === WebSocket.OPEN) {
+    for (const listener of listeners) {
+      try {
         listener.send(message);
-      } else {
-        deadListeners.push(listener);
+      } catch (e) {
+        console.error("Error sending message", e);
       }
-    });
-
-    this.listeners = this.listeners.filter((l) => !deadListeners.includes(l));
+    }
   }
 }

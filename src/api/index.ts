@@ -89,8 +89,16 @@ router.post("/v1/bill/:id/claim/:item", async (request, env: Env) => {
   const item = request.params.item;
   const body = await request.json();
 
-  await rootStore(env).claimItem(id, item, body.shares);
-  await perBillWs(env, id).broadcast(`${id}:${item}:${body.shares}`);
+  const numericShares = parseInt(body.shares, 10);
+  if (isNaN(numericShares) || numericShares < 0 || numericShares > 42) {
+    return Response.json(
+      { error: "Invalid shares. Must be between 0 and 42" },
+      { status: 400 },
+    );
+  }
+
+  await rootStore(env).claimItem(id, item, numericShares);
+  await perBillWs(env, id).broadcast(`${id}:${item}:${numericShares}`);
 
   return Response.json({ id });
 });
