@@ -1,20 +1,18 @@
 import { AutoRouter } from "itty-router";
+import OpenAI from "openai";
+import { z } from "zod";
 
 import { BillWsDurableObject } from "../do/billws";
 import { RootStoreDurableObject } from "../do/rootstore";
-
-import { DurableObjectNamespace, R2Bucket } from "@cloudflare/workers-types";
-
 import { OpenAIBillScanner } from "../scanner/openai";
-import OpenAI from "openai";
 
 export { BillWsDurableObject, RootStoreDurableObject };
 
 const ROOT_STORE_ID = "ROOT_STORE";
 
 type Env = {
-  ROOT_STORE: DurableObjectNamespace;
-  PER_BILL_WS: DurableObjectNamespace;
+  ROOT_STORE: DurableObjectNamespace<RootStoreDurableObject>;
+  PER_BILL_WS: DurableObjectNamespace<BillWsDurableObject>;
   R2_DATA: R2Bucket;
   ASSETS: {
     fetch: typeof fetch;
@@ -24,14 +22,15 @@ type Env = {
 
 const router = AutoRouter();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rootStore = (env: any): RootStoreDurableObject => {
+const rootStore = (env: Env): DurableObjectStub<RootStoreDurableObject> => {
   const rootStoreId = env.ROOT_STORE.idFromName(ROOT_STORE_ID);
   return env.ROOT_STORE.get(rootStoreId);
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const perBillWs = (env: any, id: string): BillWsDurableObject => {
+const perBillWs = (
+  env: Env,
+  id: string,
+): DurableObjectStub<BillWsDurableObject> => {
   const perBillWsId = env.PER_BILL_WS.idFromName(id);
   return env.PER_BILL_WS.get(perBillWsId);
 };
@@ -94,19 +93,16 @@ router.get("/api/v1/bill/:id", async (request, env: Env) => {
 router.post("/api/v1/bill/:id/claim/:item", async (request, env: Env) => {
   const id = request.params.id;
   const item = request.params.item;
-  const body = await request.json();
 
-  const userPrivateId = body.userPrivateId;
-  const numericShares = parseInt(body.shares, 10);
-  if (isNaN(numericShares) || numericShares < 0 || numericShares > 42) {
-    return Response.json(
-      { error: "Invalid shares. Must be between 0 and 42" },
-      { status: 400 },
-    );
-  }
+  const bodySchema = z.object({
+    userPrivateId: z.string().uuid(),
+    shares: z.number().int().min(0).max(42),
+  });
 
-  await rootStore(env).claimItem(userPrivateId, id, item, numericShares);
-  await perBillWs(env, id).broadcast(`${id}:${item}:${numericShares}`);
+  const body = bodySchema.parse(await request.json());
+
+  await rootStore(env).claimItem(body.userPrivateId, id, item, body.shares);
+  await perBillWs(env, id).broadcast(`${id}:${item}:${body.shares}`);
 
   return Response.json({ id });
 });
@@ -143,17 +139,17 @@ router.get("/api/v1/bill/:id/ws", async (request, env: Env) => {
 });
 
 router.post("/api/v1/user", async (request, env: Env) => {
-  const body = await request.json();
-  const id = body.id;
-  const privateId = body.privateId;
-  const name = body.name;
+  const bodySchema = z.object({
+    id: z.string().uuid(),
+    privateId: z.string().uuid(),
+    name: z.string().min(1),
+  });
 
-  if (!id || !privateId || !name) {
-    return Response.json({ error: "Missing required fields" }, { status: 400 });
-  }
+  const body = bodySchema.parse(await request.json());
 
-  await rootStore(env).upsertUser(privateId, id, name);
-  return Response.json({ id });
+  await rootStore(env).upsertUser(body.privateId, body.id, body.name);
+
+  return Response.json({ id: body.id });
 });
 
 // Fallback to static assets

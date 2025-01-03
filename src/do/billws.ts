@@ -1,4 +1,3 @@
-import { DurableObjectState } from "@cloudflare/workers-types";
 import { DurableObject } from "cloudflare:workers";
 
 interface Env {
@@ -6,10 +5,11 @@ interface Env {
 }
 
 export class BillWsDurableObject extends DurableObject {
-  ctx: DurableObjectState;
-  listeners: WebSocket[];
+  protected ctx: DurableObjectState;
+
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
+
     this.ctx = state;
   }
 

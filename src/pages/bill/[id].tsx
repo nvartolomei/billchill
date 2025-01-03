@@ -53,7 +53,7 @@ const subscribeToUpdates = (id: string, options: { onUpdate: () => void }) => {
   };
 };
 
-const fetchBill = async (id: string) => {
+const fetchBill = async (id: string): Promise<Bill> => {
   const response = await fetch(`/api/v1/bill/${id}`);
 
   if (response.status !== 200) {

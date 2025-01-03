@@ -1,7 +1,7 @@
-import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import { useCallback, useRef, useState } from "react";
 
-const scanBill = (name: string, file: File) => {
+const scanBill = (name: string, file: File): Promise<{ id: string }> => {
   const formData = new FormData();
   formData.append("name", name);
   formData.append("file", file);
@@ -23,7 +23,7 @@ const scanBill = (name: string, file: File) => {
         );
     })
     .then((data) => {
-      return data;
+      return data as { id: string };
     });
 };
 
@@ -47,7 +47,7 @@ const BillScanner = ({ onScan }: { onScan: (id: string) => void }) => {
       }
 
       scanBill(name, file)
-        .then((data: { id: string }) => {
+        .then((data) => {
           onScan(data.id);
         })
         .catch((error) => {

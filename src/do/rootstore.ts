@@ -1,4 +1,3 @@
-import { DurableObjectState, SqlStorage } from "@cloudflare/workers-types";
 import { DurableObject } from "cloudflare:workers";
 
 import { type Bill } from "./types";
@@ -8,7 +7,7 @@ interface Env {
 }
 
 export class RootStoreDurableObject extends DurableObject {
-  sql: SqlStorage;
+  private sql: SqlStorage;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -45,7 +44,7 @@ export class RootStoreDurableObject extends DurableObject {
 
     const scanJson = JSON.parse(bill.scan as string);
     const manualTotal = scanJson.items.reduce(
-      (acc, item) => acc + item.amount,
+      (acc: number, item: { amount: number }) => acc + item.amount,
       0,
     );
 
@@ -122,15 +121,19 @@ export class RootStoreDurableObject extends DurableObject {
 
     const scan = JSON.parse(bill.scan as string);
 
-    const item = scan.items.find((i) => i.id === itemId);
+    const item = scan.items.find((i: { id: string }) => i.id === itemId);
     if (!item) {
       throw new Error("Item not found");
     }
 
-    const claimer = item.claimers?.find((c) => c.id === user.id);
+    const claimer = item.claimers?.find(
+      (c: { id: string }) => c.id === user.id,
+    );
     if (claimer) {
       if (shares === 0) {
-        item.claimers = item.claimers?.filter((c) => c.id !== user.id);
+        item.claimers = item.claimers?.filter(
+          (c: { id: string }) => c.id !== user.id,
+        );
       } else {
         claimer.shares = shares;
       }
