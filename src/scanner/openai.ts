@@ -1,4 +1,4 @@
-import { BillScanResultSchema, FinalBillScanResult } from "@/scanner";
+import { BillScanResultSchema, FinalBillScanResult } from ".";
 import { OpenAI } from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 

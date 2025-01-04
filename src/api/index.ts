@@ -138,19 +138,24 @@ router.get("/api/v1/bill/:id/ws", async (request, env: Env) => {
   });
 });
 
-router.post("/api/v1/user", async (request, env: Env) => {
-  const bodySchema = z.object({
-    id: z.string().uuid(),
-    privateId: z.string().uuid(),
-    name: z.string().min(1),
-  });
-
-  const body = bodySchema.parse(await request.json());
-
-  await rootStore(env).upsertUser(body.privateId, body.id, body.name);
-
-  return Response.json({ id: body.id });
+const createUserRequestSchema = z.object({
+  id: z.string().uuid(),
+  privateId: z.string().uuid(),
+  name: z.string().min(1),
 });
+
+type CreateUserResponse = z.infer<typeof createUserRequestSchema>;
+
+router.post(
+  "/api/v1/user",
+  async (request, env: Env): Promise<CreateUserResponse> => {
+    const body = createUserRequestSchema.parse(await request.json());
+
+    await rootStore(env).upsertUser(body.privateId, body.id, body.name);
+
+    return body;
+  },
+);
 
 // Fallback to static assets
 // See: https://developers.cloudflare.com/workers/static-assets/
