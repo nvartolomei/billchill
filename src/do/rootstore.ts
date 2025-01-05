@@ -6,6 +6,12 @@ interface Env {
   ROOT_STORE: DurableObject;
 }
 
+export type UserPrivate = {
+  privateId: string;
+  id: string;
+  name: string;
+};
+
 export class RootStoreDurableObject extends DurableObject {
   private sql: SqlStorage;
 
@@ -13,7 +19,7 @@ export class RootStoreDurableObject extends DurableObject {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(
-      `CREATE TABLE IF NOT EXISTS bills (id TEXT PRIMARY KEY, date TEXT, name TEXT, scan TEXT)`,
+      `CREATE TABLE IF NOT EXISTS bills (id TEXT PRIMARY KEY, date TEXT, name TEXT, scan TEXT, ownerId TEXT)`,
     );
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, privateId TEXT, name TEXT)`,
@@ -98,12 +104,13 @@ export class RootStoreDurableObject extends DurableObject {
     };
   }
 
-  createBill(id: string, name: string, scan: string) {
+  createBill(ownerId: string, id: string, name: string, scan: string) {
     this.sql.exec(
-      "INSERT INTO bills (id, date, name, scan) VALUES (?, datetime('now'), ?, ?)",
+      "INSERT INTO bills (id, date, name, scan, ownerId) VALUES (?, datetime('now'), ?, ?, ?)",
       id,
       name,
       scan,
+      ownerId,
     );
   }
 
@@ -161,9 +168,9 @@ export class RootStoreDurableObject extends DurableObject {
     return results.one();
   }
 
-  getUserPrivate(privateId: string) {
+  getUserPrivate(privateId: string): UserPrivate | null {
     const results = this.sql.exec(
-      "SELECT id, name FROM users WHERE privateId = ?",
+      "SELECT privateId, id, name FROM users WHERE privateId = ?",
       privateId,
     );
 
@@ -171,7 +178,7 @@ export class RootStoreDurableObject extends DurableObject {
       return null;
     }
 
-    return results.one();
+    return results.one() as UserPrivate;
   }
 
   upsertUser(privateId: string, id: string, name: string) {

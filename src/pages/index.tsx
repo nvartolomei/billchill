@@ -1,13 +1,21 @@
+import { UserContext } from "@/componenets/Contexts";
 import { useRouter } from "next/router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useContext, useRef, useState } from "react";
 
-const scanBill = (name: string, file: File): Promise<{ id: string }> => {
+const scanBill = (
+  privateUserId: string,
+  name: string,
+  file: File,
+): Promise<{ id: string }> => {
   const formData = new FormData();
   formData.append("name", name);
   formData.append("file", file);
   return fetch("/api/v1/scan", {
     method: "POST",
     body: formData,
+    headers: {
+      Authorization: `Bearer ${privateUserId}`,
+    },
   })
     .then((response) => {
       if (!response.ok) {
@@ -32,8 +40,14 @@ const BillScanner = ({ onScan }: { onScan: (id: string) => void }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const user = useContext(UserContext);
+
   const uploadCallback = useCallback(
     (file: File) => {
+      if (!user) {
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
 
@@ -46,7 +60,7 @@ const BillScanner = ({ onScan }: { onScan: (id: string) => void }) => {
         return;
       }
 
-      scanBill(name, file)
+      scanBill(user.privateId, name, file)
         .then((data) => {
           onScan(data.id);
         })

@@ -75,8 +75,10 @@ const submitClaim = async (
 ) => {
   const response = await fetch(`/api/v1/bill/${id}/claim/${itemId}`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${userPrivateId}`,
+    },
     body: JSON.stringify({
-      userPrivateId,
       shares,
     }),
   });
