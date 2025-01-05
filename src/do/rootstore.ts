@@ -21,6 +21,10 @@ export class RootStoreDurableObject extends DurableObject {
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS bills (id TEXT PRIMARY KEY, date TEXT, name TEXT, scan TEXT, ownerId TEXT)`,
     );
+    try {
+      this.sql.exec("ALTER TABLE bills ADD COLUMN  ownerId TEXT");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {}
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, privateId TEXT, name TEXT)`,
     );
